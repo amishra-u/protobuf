@@ -366,7 +366,9 @@ void ImmutableMessageGenerator::Generate(io::Printer* printer) {
                  "  return new $classname$();\n"
                  "}\n"
                  "\n");
-
+  if (context_->HasGeneratedMethods(descriptor_)) {
+    GenerateParsingConstructor(printer);
+  }
   GenerateDescriptorMethods(printer);
 
   // Nested types
@@ -1129,32 +1131,188 @@ void ImmutableMessageGenerator::GenerateExtensionRegistrationCode(
 }
 
 // ===================================================================
+
+void ImmutableMessageGenerator::GenerateParsingConstructor(
+    io::Printer* printer) {
+  std::unique_ptr<const FieldDescriptor*[]> sorted_fields(
+      SortFieldsByNumber(descriptor_));
+
+  printer->Print(
+      "private $classname$(\n"
+      "    com.google.protobuf.CodedInputStream input,\n"
+      "    com.google.protobuf.ExtensionRegistryLite extensionRegistry)\n"
+      "    throws com.google.protobuf.InvalidProtocolBufferException {\n",
+      "classname", descriptor_->name());
+  printer->Indent();
+
+  // Initialize all fields to default.
+  printer->Print(
+      "this();\n"
+      "if (extensionRegistry == null) {\n"
+      "  throw new java.lang.NullPointerException();\n"
+      "}\n");
+
+  // Use builder bits to track mutable repeated fields.
+  int totalBuilderBits = 0;
+  for (int i = 0; i < descriptor_->field_count(); i++) {
+    const ImmutableFieldGenerator& field =
+        field_generators_.get(descriptor_->field(i));
+    totalBuilderBits += field.GetNumBitsForBuilder();
+  }
+  int totalBuilderInts = (totalBuilderBits + 31) / 32;
+  for (int i = 0; i < totalBuilderInts; i++) {
+    printer->Print("int mutable_$bit_field_name$ = 0;\n", "bit_field_name",
+                   GetBitFieldName(i));
+  }
+
+  printer->Print(
+      "com.google.protobuf.UnknownFieldSet.Builder unknownFields =\n"
+      "    com.google.protobuf.UnknownFieldSet.newBuilder();\n");
+
+  printer->Print("try {\n");
+  printer->Indent();
+
+  printer->Print(
+      "boolean done = false;\n"
+      "while (!done) {\n");
+  printer->Indent();
+
+  printer->Print(
+      "int tag = input.readTag();\n"
+      "switch (tag) {\n");
+  printer->Indent();
+
+  printer->Print(
+      "case 0:\n"  // zero signals EOF / limit reached
+      "  done = true;\n"
+      "  break;\n");
+
+  for (int i = 0; i < descriptor_->field_count(); i++) {
+    const FieldDescriptor* field = sorted_fields[i];
+    uint32_t tag = WireFormatLite::MakeTag(
+        field->number(), WireFormat::WireTypeForFieldType(field->type()));
+
+    printer->Print("case $tag$: {\n", "tag",
+                   absl::StrCat(static_cast<int32_t>(tag)));
+    printer->Indent();
+
+    field_generators_.get(field).GenerateParsingCode(printer);
+
+    printer->Outdent();
+    printer->Print(
+        "  break;\n"
+        "}\n");
+
+    if (field->is_packable()) {
+      // To make packed = true wire compatible, we generate parsing code from a
+      // packed version of this field regardless of field->options().packed().
+      uint32_t packed_tag = WireFormatLite::MakeTag(
+          field->number(), WireFormatLite::WIRETYPE_LENGTH_DELIMITED);
+      printer->Print("case $tag$: {\n", "tag",
+                     absl::StrCat(static_cast<int32_t>(packed_tag)));
+      printer->Indent();
+
+      field_generators_.get(field).GenerateParsingCodeFromPacked(printer);
+
+      printer->Outdent();
+      printer->Print(
+          "  break;\n"
+          "}\n");
+    }
+  }
+
+  printer->Print(
+      "default: {\n"
+      "  if (!parseUnknownField(\n"
+      "      input, unknownFields, extensionRegistry, tag)) {\n"
+      "    done = true;\n"  // it's an endgroup tag
+      "  }\n"
+      "  break;\n"
+      "}\n");
+
+  printer->Outdent();
+  printer->Outdent();
+  printer->Print(
+      "  }\n"  // switch (tag)
+      "}\n");  // while (!done)
+
+  printer->Outdent();
+  printer->Print(
+      "} catch (com.google.protobuf.InvalidProtocolBufferException e) {\n"
+      "  throw e.setUnfinishedMessage(this);\n"
+      "} catch (com.google.protobuf.UninitializedMessageException e) {\n"
+      "  throw "
+      "e.asInvalidProtocolBufferException().setUnfinishedMessage(this);\n"
+      "} catch (java.io.IOException e) {\n"
+      "  throw new com.google.protobuf.InvalidProtocolBufferException(\n"
+      "      e).setUnfinishedMessage(this);\n"
+      "} finally {\n");
+  printer->Indent();
+
+  // Make repeated field list immutable.
+  for (int i = 0; i < descriptor_->field_count(); i++) {
+    const FieldDescriptor* field = sorted_fields[i];
+    field_generators_.get(field).GenerateParsingDoneCode(printer);
+  }
+
+  // Make unknown fields immutable.
+  printer->Print("this.unknownFields = unknownFields.build();\n");
+
+  // Make extensions immutable.
+  printer->Print("makeExtensionsImmutable();\n");
+
+  printer->Outdent();
+  printer->Outdent();
+  printer->Print(
+      "  }\n"  // finally
+      "}\n");
+}
+
 void ImmutableMessageGenerator::GenerateParser(io::Printer* printer) {
   printer->Print(
       "$visibility$ static final com.google.protobuf.Parser<$classname$>\n"
-      "    PARSER = new com.google.protobuf.AbstractParser<$classname$>() {\n"
+      "    PARSER = new com.google.protobuf.AbstractParser<$classname$>() {\n",
+      "visibility",
+      ExposePublicParser(descriptor_->file()) ? "@java.lang.Deprecated public"
+                                                       : "private",
+      "classname", descriptor_->name());
+  printer->Indent();
+  printer->Print(
       "  @java.lang.Override\n"
       "  public $classname$ parsePartialFrom(\n"
       "      com.google.protobuf.CodedInputStream input,\n"
       "      com.google.protobuf.ExtensionRegistryLite extensionRegistry)\n"
-      "      throws com.google.protobuf.InvalidProtocolBufferException {\n"
-      "    Builder builder = newBuilder();\n"
-      "    try {\n"
-      "      builder.mergeFrom(input, extensionRegistry);\n"
-      "    } catch (com.google.protobuf.InvalidProtocolBufferException e) {\n"
-      "      throw e.setUnfinishedMessage(builder.buildPartial());\n"
-      "    } catch (com.google.protobuf.UninitializedMessageException e) {\n"
-      "      throw "
-      "e.asInvalidProtocolBufferException().setUnfinishedMessage(builder."
-      "buildPartial());\n"
-      "    } catch (java.io.IOException e) {\n"
-      "      throw new com.google.protobuf.InvalidProtocolBufferException(e)\n"
-      "          .setUnfinishedMessage(builder.buildPartial());\n"
-      "    }\n"
-      "    return builder.buildPartial();\n"
-      "  }\n"
-      "};\n"
-      "\n"
+      "      throws com.google.protobuf.InvalidProtocolBufferException {\n",
+      "classname", descriptor_->name());
+  if (context_->HasGeneratedMethods(descriptor_)) {
+    printer->Print("  return new $classname$(input, extensionRegistry);\n",
+                       "classname", descriptor_->name());
+  } else {
+    // When parsing constructor isn't generated, use builder to parse
+    // messages. Note, will fallback to use reflection based mergeFieldFrom()
+    // in AbstractMessage.Builder.
+    printer->Indent();
+    printer->Print(
+        "Builder builder = newBuilder();\n"
+        "try {\n"
+        "  builder.mergeFrom(input, extensionRegistry);\n"
+        "} catch (com.google.protobuf.InvalidProtocolBufferException e) {\n"
+        "  throw e.setUnfinishedMessage(builder.buildPartial());\n"
+        "} catch (java.io.IOException e) {\n"
+        "  throw new com.google.protobuf.InvalidProtocolBufferException(\n"
+        "      e.getMessage()).setUnfinishedMessage(\n"
+        "          builder.buildPartial());\n"
+        "}\n"
+        "return builder.buildPartial();\n");
+    printer->Outdent();
+  }
+  printer->Print("}\n");
+  printer->Outdent();
+  printer->Print(
+        "};\n"
+        "\n");
+
+  printer->Print(
       "public static com.google.protobuf.Parser<$classname$> parser() {\n"
       "  return PARSER;\n"
       "}\n"
@@ -1164,9 +1322,6 @@ void ImmutableMessageGenerator::GenerateParser(io::Printer* printer) {
       "  return PARSER;\n"
       "}\n"
       "\n",
-      "visibility",
-      ExposePublicParser(descriptor_->file()) ? "@java.lang.Deprecated public"
-                                              : "private",
       "classname", descriptor_->name());
 }
 

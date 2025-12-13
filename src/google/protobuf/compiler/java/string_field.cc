@@ -108,6 +108,18 @@ void SetPrimitiveVariables(
       absl::StrCat(GenerateSetBit(builderBitIndex), ";");
   (*variables)["clear_has_field_bit_builder"] =
       absl::StrCat(GenerateClearBit(builderBitIndex), ";");
+
+  // For repeated builders, one bit is used for whether the array is immutable.
+  (*variables)["get_mutable_bit_builder"] = GenerateGetBit(builderBitIndex);
+  (*variables)["set_mutable_bit_builder"] = GenerateSetBit(builderBitIndex);
+  (*variables)["clear_mutable_bit_builder"] = GenerateClearBit(builderBitIndex);
+
+  // For repeated fields, one bit is used for whether the array is immutable
+  // in the parsing constructor.
+  (*variables)["get_mutable_bit_parser"] =
+      GenerateGetBitMutableLocal(builderBitIndex);
+  (*variables)["set_mutable_bit_parser"] =
+      GenerateSetBitMutableLocal(builderBitIndex);
 }
 
 }  // namespace
@@ -458,6 +470,26 @@ void ImmutableStringFieldGenerator::GenerateBuilderParsingCode(
                    "$name$_ = input.readBytes();\n"
                    "$set_has_field_bit_builder$\n");
   }
+}
+
+void ImmutableStringFieldGenerator::GenerateParsingCode(
+    io::Printer* printer) const {
+  if (CheckUtf8(descriptor_)) {
+    printer->Print(variables_,
+                   "java.lang.String s = input.readStringRequireUtf8();\n"
+                   "$set_has_field_bit_message$\n"
+                   "$name$_ = s;\n");
+  } else {
+    printer->Print(variables_,
+                   "com.google.protobuf.ByteString bs = input.readBytes();\n"
+                   "$set_has_field_bit_message$\n"
+                   "$name$_ = bs;\n");
+  }
+}
+
+void ImmutableStringFieldGenerator::GenerateParsingDoneCode(
+    io::Printer* printer) const {
+  // noop for strings.
 }
 
 void ImmutableStringFieldGenerator::GenerateSerializationCode(
@@ -1143,6 +1175,35 @@ void RepeatedImmutableStringFieldGenerator::GenerateBuilderParsingCode(
                    "ensure$capitalized_name$IsMutable();\n"
                    "$name$_.add(bs);\n");
   }
+}
+
+void RepeatedImmutableStringFieldGenerator::GenerateParsingCode(
+    io::Printer* printer) const {
+  if (CheckUtf8(descriptor_)) {
+    printer->Print(variables_,
+                   "java.lang.String s = input.readStringRequireUtf8();\n");
+  } else {
+    printer->Print(variables_,
+                   "com.google.protobuf.ByteString bs = input.readBytes();\n");
+  }
+  printer->Print(variables_,
+                 "if (!$get_mutable_bit_parser$) {\n"
+                 "  $name$_ = new com.google.protobuf.LazyStringArrayList();\n"
+                 "  $set_mutable_bit_parser$;\n"
+                 "}\n");
+  if (CheckUtf8(descriptor_)) {
+    printer->Print(variables_, "$name$_.add(s);\n");
+  } else {
+    printer->Print(variables_, "$name$_.add(bs);\n");
+  }
+}
+
+void RepeatedImmutableStringFieldGenerator::GenerateParsingDoneCode(
+    io::Printer* printer) const {
+  printer->Print(variables_,
+                 "if ($get_mutable_bit_parser$) {\n"
+                 "  $name$_ = $name$_.getUnmodifiableView();\n"
+                 "}\n");
 }
 
 void RepeatedImmutableStringFieldGenerator::GenerateSerializationCode(

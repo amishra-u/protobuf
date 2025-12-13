@@ -88,6 +88,13 @@ void SetEnumVariables(
   (*variables)["set_mutable_bit_builder"] = GenerateSetBit(builderBitIndex);
   (*variables)["clear_mutable_bit_builder"] = GenerateClearBit(builderBitIndex);
 
+  // For repeated fields, one bit is used for whether the array is immutable
+  // in the parsing constructor.
+  (*variables)["get_mutable_bit_parser"] =
+      GenerateGetBitMutableLocal(builderBitIndex);
+  (*variables)["set_mutable_bit_parser"] =
+      GenerateSetBitMutableLocal(builderBitIndex);
+
   (*variables)["get_has_field_bit_builder"] = GenerateGetBit(builderBitIndex);
 
   // Note that these have a trailing ";".
@@ -352,6 +359,32 @@ void ImmutableEnumFieldGenerator::GenerateBuildingCode(
     printer->Print(variables_, "  $set_has_field_bit_to_local$;\n");
   }
   printer->Print("}\n");
+}
+
+void ImmutableEnumFieldGenerator::GenerateParsingCode(
+  io::Printer *printer) const {
+  if (SupportUnknownEnumValue(descriptor_)) {
+    printer->Print(variables_,
+                   "int rawValue = input.readEnum();\n"
+                   "$set_has_field_bit_message$\n"
+                   "$name$_ = rawValue;\n");
+  } else {
+    printer->Print(variables_,
+                   "int rawValue = input.readEnum();\n"
+                   "  @SuppressWarnings(\"deprecation\")\n"
+                   "$type$ value = $type$.$for_number$(rawValue);\n"
+                   "if (value == null) {\n"
+                   "  unknownFields.mergeVarintField($number$, rawValue);\n"
+                   "} else {\n"
+                   "  $set_has_field_bit_message$\n"
+                   "  $name$_ = rawValue;\n"
+                   "}\n");
+  }
+}
+
+void ImmutableEnumFieldGenerator::GenerateParsingDoneCode(
+  io::Printer *printer) const {
+  // noop for enums
 }
 
 void ImmutableEnumFieldGenerator::GenerateBuilderParsingCode(
@@ -1011,6 +1044,62 @@ void RepeatedImmutableEnumFieldGenerator::GenerateBuilderParsingCodeFromPacked(
                  "}\n"
                  "input.popLimit(oldLimit);\n");
 }
+
+void RepeatedImmutableEnumFieldGenerator::GenerateParsingCode(
+    io::Printer* printer) const {
+  // Read and store the enum
+  if (SupportUnknownEnumValue(descriptor_)) {
+    printer->Print(variables_,
+                   "int rawValue = input.readEnum();\n"
+                   "if (!$get_mutable_bit_parser$) {\n"
+                   "  $name$_ = new java.util.ArrayList<java.lang.Integer>();\n"
+                   "  $set_mutable_bit_parser$;\n"
+                   "}\n"
+                   "$name$_.add(rawValue);\n");
+  } else {
+    printer->Print(
+        variables_,
+        "int rawValue = input.readEnum();\n"
+        "$type$ value = $type$.forNumber(rawValue);\n"
+        "if (value == null) {\n"
+        "  unknownFields.mergeVarintField($number$, rawValue);\n"
+        "} else {\n"
+        "  if (!$get_mutable_bit_parser$) {\n"
+        "    $name$_ = new java.util.ArrayList<java.lang.Integer>();\n"
+        "    $set_mutable_bit_parser$;\n"
+        "  }\n"
+        "  $name$_.add(rawValue);\n"
+        "}\n");
+  }
+}
+
+void RepeatedImmutableEnumFieldGenerator::GenerateParsingCodeFromPacked(
+    io::Printer* printer) const {
+  // Wrap GenerateParsingCode's contents with a while loop.
+
+  printer->Print(variables_,
+                 "int length = input.readRawVarint32();\n"
+                 "int oldLimit = input.pushLimit(length);\n"
+                 "while(input.getBytesUntilLimit() > 0) {\n");
+  printer->Indent();
+
+  GenerateParsingCode(printer);
+
+  printer->Outdent();
+  printer->Print(variables_,
+                 "}\n"
+                 "input.popLimit(oldLimit);\n");
+}
+
+void RepeatedImmutableEnumFieldGenerator::GenerateParsingDoneCode(
+    io::Printer* printer) const {
+  printer->Print(
+      variables_,
+      "if ($get_mutable_bit_parser$) {\n"
+      "  $name$_ = java.util.Collections.unmodifiableList($name$_);\n"
+      "}\n");
+}
+
 void RepeatedImmutableEnumFieldGenerator::GenerateSerializationCode(
     io::Printer* printer) const {
   if (descriptor_->is_packed()) {

@@ -57,6 +57,8 @@ class ImmutableEnumFieldGenerator : public ImmutableFieldGenerator {
   void GenerateBuilderParsingCode(io::Printer* printer) const override;
   void GenerateMergingCode(io::Printer* printer) const override;
   void GenerateBuildingCode(io::Printer* printer) const override;
+  void GenerateParsingCode(io::Printer* printer) const override;
+  void GenerateParsingDoneCode(io::Printer* printer) const override;
   void GenerateSerializationCode(io::Printer* printer) const override;
   void GenerateSerializedSizeCode(io::Printer* printer) const override;
   void GenerateFieldBuilderInitializationCode(
@@ -123,6 +125,9 @@ class RepeatedImmutableEnumFieldGenerator : public ImmutableEnumFieldGenerator {
   void GenerateBuilderParsingCode(io::Printer* printer) const override;
   void GenerateBuilderParsingCodeFromPacked(
       io::Printer* printer) const override;
+  void GenerateParsingCode(io::Printer* printer) const override;
+  void GenerateParsingCodeFromPacked(io::Printer* printer) const override;
+  void GenerateParsingDoneCode(io::Printer* printer) const override;
   void GenerateSerializationCode(io::Printer* printer) const override;
   void GenerateSerializedSizeCode(io::Printer* printer) const override;
   void GenerateFieldBuilderInitializationCode(

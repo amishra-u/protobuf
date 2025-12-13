@@ -176,6 +176,11 @@ void ImmutableFieldGenerator::GenerateBuilderParsingCodeFromPacked(
   ReportUnexpectedPackedFieldsCall(printer);
 }
 
+void ImmutableFieldGenerator::GenerateParsingCodeFromPacked(
+    io::Printer* printer) const {
+  ReportUnexpectedPackedFieldsCall(printer);
+}
+
 ImmutableFieldLiteGenerator::~ImmutableFieldLiteGenerator() {}
 
 // ===================================================================

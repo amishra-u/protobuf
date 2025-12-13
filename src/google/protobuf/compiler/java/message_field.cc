@@ -73,11 +73,14 @@ void SetMessageVariables(
     (*variables)["get_has_field_bit_message"] = GenerateGetBit(messageBitIndex);
 
     // Note that these have a trailing ";".
+    (*variables)["set_has_field_bit_message"] =
+        absl::StrCat(GenerateSetBit(messageBitIndex), ";");
     (*variables)["set_has_field_bit_to_local"] =
         GenerateSetBitToLocal(messageBitIndex);
 
     (*variables)["is_field_present_message"] = GenerateGetBit(messageBitIndex);
   } else {
+    (*variables)["set_has_field_bit_message"] = "";
     (*variables)["set_has_field_bit_to_local"] = "";
     variables->insert({"is_field_present_message",
                        absl::StrCat((*variables)["name"], "_ != null")});
@@ -95,6 +98,13 @@ void SetMessageVariables(
       absl::StrCat(GenerateClearBit(builderBitIndex), ";");
   (*variables)["get_has_field_bit_from_local"] =
       GenerateGetBitFromLocal(builderBitIndex);
+
+  // For repeated fields, one bit is used for whether the array is immutable
+  // in the parsing constructor.
+  (*variables)["get_mutable_bit_parser"] =
+      GenerateGetBitMutableLocal(builderBitIndex);
+  (*variables)["set_mutable_bit_parser"] =
+      GenerateSetBitMutableLocal(builderBitIndex);
 }
 
 }  // namespace
@@ -473,6 +483,37 @@ void ImmutableMessageFieldGenerator::GenerateBuilderParsingCode(
                    "    extensionRegistry);\n"
                    "$set_has_field_bit_builder$\n");
   }
+}
+
+void ImmutableMessageFieldGenerator::GenerateParsingCode(
+    io::Printer* printer) const {
+  printer->Print(variables_,
+                 "$type$.Builder subBuilder = null;\n"
+                 "if ($is_field_present_message$) {\n"
+                 "  subBuilder = $name$_.toBuilder();\n"
+                 "}\n");
+
+  if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
+    printer->Print(variables_,
+                   "$name$_ = input.readGroup($number$, $type$.$get_parser$,\n"
+                   "    extensionRegistry);\n");
+  } else {
+    printer->Print(variables_,
+                   "$name$_ = input.readMessage($type$.$get_parser$, "
+                   "extensionRegistry);\n");
+  }
+
+  printer->Print(variables_,
+                 "if (subBuilder != null) {\n"
+                 "  subBuilder.mergeFrom($name$_);\n"
+                 "  $name$_ = subBuilder.buildPartial();\n"
+                 "}\n"
+                 "$set_has_field_bit_message$\n");
+}
+
+void ImmutableMessageFieldGenerator::GenerateParsingDoneCode(
+    io::Printer* printer) const {
+  // noop for messages.
 }
 
 void ImmutableMessageFieldGenerator::GenerateSerializationCode(
@@ -1317,6 +1358,36 @@ void RepeatedImmutableMessageFieldGenerator::GenerateBuilderParsingCode(
                               "ensure$capitalized_name$IsMutable();\n"
                               "$name$_.add(m);\n",
                               "$name$Builder_.addMessage(m);\n");
+}
+
+void RepeatedImmutableMessageFieldGenerator::GenerateParsingCode(
+    io::Printer* printer) const {
+  printer->Print(variables_,
+                 "if (!$get_mutable_bit_parser$) {\n"
+                 "  $name$_ = new java.util.ArrayList<$type$>();\n"
+                 "  $set_mutable_bit_parser$;\n"
+                 "}\n");
+
+  if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
+    printer->Print(
+        variables_,
+        "$name$_.add(input.readGroup($number$, $type$.$get_parser$,\n"
+        "    extensionRegistry));\n");
+  } else {
+    printer->Print(
+        variables_,
+        "$name$_.add(\n"
+        "    input.readMessage($type$.$get_parser$, extensionRegistry));\n");
+  }
+}
+
+void RepeatedImmutableMessageFieldGenerator::GenerateParsingDoneCode(
+    io::Printer* printer) const {
+  printer->Print(
+      variables_,
+      "if ($get_mutable_bit_parser$) {\n"
+      "  $name$_ = java.util.Collections.unmodifiableList($name$_);\n"
+      "}\n");
 }
 
 void RepeatedImmutableMessageFieldGenerator::GenerateSerializationCode(

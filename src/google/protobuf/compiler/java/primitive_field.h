@@ -58,6 +58,8 @@ class ImmutablePrimitiveFieldGenerator : public ImmutableFieldGenerator {
   void GenerateMergingCode(io::Printer* printer) const override;
   void GenerateBuildingCode(io::Printer* printer) const override;
   void GenerateBuilderParsingCode(io::Printer* printer) const override;
+  void GenerateParsingCode(io::Printer* printer) const override;
+  void GenerateParsingDoneCode(io::Printer* printer) const override;
   void GenerateSerializationCode(io::Printer* printer) const override;
   void GenerateSerializedSizeCode(io::Printer* printer) const override;
   void GenerateFieldBuilderInitializationCode(
@@ -124,6 +126,9 @@ class RepeatedImmutablePrimitiveFieldGenerator
   void GenerateBuilderParsingCode(io::Printer* printer) const override;
   void GenerateBuilderParsingCodeFromPacked(
       io::Printer* printer) const override;
+  void GenerateParsingCode(io::Printer* printer) const override;
+  void GenerateParsingCodeFromPacked(io::Printer* printer) const override;
+  void GenerateParsingDoneCode(io::Printer* printer) const override;
   void GenerateSerializationCode(io::Printer* printer) const override;
   void GenerateSerializedSizeCode(io::Printer* printer) const override;
   void GenerateFieldBuilderInitializationCode(

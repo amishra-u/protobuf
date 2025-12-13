@@ -193,6 +193,12 @@ void ImmutableMapFieldGenerator::SetMessageVariables(
       absl::StrCat(GenerateSetBit(builder_bit_index_), ";");
   variables_["clear_has_field_bit_builder"] =
       absl::StrCat(GenerateClearBit(builder_bit_index_), ";");
+
+  // For parsing constructor
+  variables_["get_mutable_bit_parser"] =
+      GenerateGetBitMutableLocal(builder_bit_index_);
+  variables_["set_mutable_bit_parser"] =
+      GenerateSetBitMutableLocal(builder_bit_index_);
 }
 
 int ImmutableMapFieldGenerator::GetMessageBitIndex() const {
@@ -1129,6 +1135,47 @@ void ImmutableMapFieldGenerator::GenerateBuilderParsingCode(
                  "    $name$__.getKey(), $name$__.getValue());\n"
                  "$set_has_field_bit_builder$\n");
 }
+
+void ImmutableMapFieldGenerator::GenerateParsingCode(
+    io::Printer* printer) const {
+  printer->Print(variables_,
+                 "if (!$get_mutable_bit_parser$) {\n"
+                 "  $name$_ = com.google.protobuf.MapField.newMapField(\n"
+                 "      $map_field_parameter$);\n"
+                 "  $set_mutable_bit_parser$;\n"
+                 "}\n");
+  const FieldDescriptor* value = MapValueField(descriptor_);
+  const JavaType type = GetJavaType(value);
+  if (!SupportUnknownEnumValue(value) && type == JAVATYPE_ENUM) {
+    printer->Print(
+        variables_,
+        "com.google.protobuf.ByteString bytes = input.readBytes();\n"
+        "com.google.protobuf.MapEntry<$type_parameters$>\n"
+        "$name$__ = $default_entry$.getParserForType().parseFrom(bytes);\n");
+    printer->Print(
+        variables_,
+        "if ($value_enum_type$.forNumber($name$__.getValue()) == null) {\n"
+        "  unknownFields.mergeLengthDelimitedField($number$, bytes);\n"
+        "} else {\n"
+        "  $name$_.getMutableMap().put(\n"
+        "      $name$__.getKey(), $name$__.getValue());\n"
+        "}\n");
+  } else {
+    printer->Print(
+        variables_,
+        "com.google.protobuf.MapEntry<$type_parameters$>\n"
+        "$name$__ = input.readMessage(\n"
+        "    $default_entry$.getParserForType(), extensionRegistry);\n"
+        "$name$_.getMutableMap().put(\n"
+        "    $name$__.getKey(), $name$__.getValue());\n");
+  }
+}
+
+void ImmutableMapFieldGenerator::GenerateParsingDoneCode(
+    io::Printer* printer) const {
+  // Nothing to do here.
+}
+
 void ImmutableMapFieldGenerator::GenerateSerializationCode(
     io::Printer* printer) const {
   printer->Print(variables_,
