@@ -372,7 +372,7 @@ void ImmutableEnumFieldGenerator::GenerateParsingCode(
     printer->Print(variables_,
                    "int rawValue = input.readEnum();\n"
                    "  @SuppressWarnings(\"deprecation\")\n"
-                   "$type$ value = $type$.$for_number$(rawValue);\n"
+                   "$type$ value = $type$.forNumber(rawValue);\n"
                    "if (value == null) {\n"
                    "  unknownFields.mergeVarintField($number$, rawValue);\n"
                    "} else {\n"
@@ -609,7 +609,7 @@ void ImmutableEnumOneofFieldGenerator::GenerateParsingCode(
     printer->Print(variables_,
                    "int rawValue = input.readEnum();\n"
                    "@SuppressWarnings(\"deprecation\")\n"
-                   "$type$ value = $type$.$for_number$(rawValue);\n"
+                   "$type$ value = $type$.forNumber(rawValue);\n"
                    "if (value == null) {\n"
                    "  unknownFields.mergeVarintField($number$, rawValue);\n"
                    "} else {\n"
