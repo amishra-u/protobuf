@@ -362,6 +362,13 @@ void ImmutablePrimitiveFieldGenerator::GenerateMergingCode(
   }
 }
 
+void ImmutablePrimitiveOneofFieldGenerator::GenerateParsingCode(
+    io::Printer *printer) const {
+  printer->Print(variables_,
+                 "$oneof_name$_ = input.read$capitalized_type$();\n"
+                 "$set_oneof_case_message$;\n");
+}
+
 void ImmutablePrimitiveFieldGenerator::GenerateBuildingCode(
     io::Printer* printer) const {
   printer->Print(variables_,
@@ -1037,27 +1044,14 @@ void RepeatedImmutablePrimitiveFieldGenerator::
 
 void RepeatedImmutablePrimitiveFieldGenerator::GenerateParsingCode(
     io::Printer* printer) const {
-  JavaType javaType = GetJavaType(descriptor_);
-  if (javaType == JAVATYPE_INT || javaType == JAVATYPE_LONG ||
-      javaType == JAVATYPE_FLOAT || javaType == JAVATYPE_DOUBLE ||
-      javaType == JAVATYPE_BOOLEAN) {
-    printer->Print(
-        variables_,
-        "$type$ v = input.read$capitalized_type$();\n"
-        "if (!$get_mutable_bit_parser$) {\n"
-        "  $name$_ = new$capitalized_type$List();\n"
-        "  $set_mutable_bit_parser$;\n"
-        "}\n"
-        "$name$_.add$capitalized_type$(v);\n");
-  } else {
-    printer->Print(variables_,
-                   "$type$ v = input.read$capitalized_type$();\n"
-                   "if (!$get_mutable_bit_parser$) {\n"
-                   "  $name$_ = new java.util.ArrayList<$boxed_type$>();\n"
-                   "  $set_mutable_bit_parser$;\n"
-                   "}\n"
-                   "$name$_.add(v);\n");
-  }
+  printer->Print(
+      variables_,
+      "$type$ v = input.read$capitalized_type$();\n"
+      "if (!$name$_.isModifiable()) {\n"
+      "  $name$_ = makeMutableCopy($name$_);\n"
+      "  $set_mutable_bit_parser$;\n"
+      "}\n"
+      "$repeated_add$(v);\n");
 }
 
 void RepeatedImmutablePrimitiveFieldGenerator::GenerateParsingCodeFromPacked(
@@ -1065,47 +1059,23 @@ void RepeatedImmutablePrimitiveFieldGenerator::GenerateParsingCodeFromPacked(
   printer->Print(variables_,
                  "int length = input.readRawVarint32();\n"
                  "int limit = input.pushLimit(length);\n");
-  JavaType javaType = GetJavaType(descriptor_);
-  if (javaType == JAVATYPE_INT || javaType == JAVATYPE_LONG ||
-      javaType == JAVATYPE_FLOAT || javaType == JAVATYPE_DOUBLE ||
-      javaType == JAVATYPE_BOOLEAN) {
-    printer->Print(variables_,
-                   "if (!$get_mutable_bit_parser$ && input.getBytesUntilLimit() > 0) {\n"
-                   "  $name$_ = new$capitalized_type$List();\n"
-                   "  $set_mutable_bit_parser$;\n"
-                   "}\n"
-                   "while (input.getBytesUntilLimit() > 0) {\n"
-                   "  $name$_.add$capitalized_type$(input.read$capitalized_type$());\n"
-                   "}\n");
-  } else {
-    printer->Print(variables_,
-                   "if (!$get_mutable_bit_parser$ && input.getBytesUntilLimit() > 0) {\n"
-                   "  $name$_ = new java.util.ArrayList<$boxed_type$>();\n"
-                   "  $set_mutable_bit_parser$;\n"
-                   "}\n"
-                   "while (input.getBytesUntilLimit() > 0) {\n"
-                   "  $name$_.add(input.read$capitalized_type$());\n"
-                   "}\n");
-  }
+  printer->Print(variables_,
+               "if (!$name$_.isModifiable() && input.getBytesUntilLimit() > 0) {\n"
+               "  $name$_ = makeMutableCopy($name$_);\n"
+               "  $set_mutable_bit_parser$;\n"
+               "}\n"
+               "while (input.getBytesUntilLimit() > 0) {\n"
+               "  $repeated_add$(input.read$capitalized_type$());\n"
+               "}\n");
   printer->Print(variables_, "input.popLimit(limit);\n");
 }
 
 void RepeatedImmutablePrimitiveFieldGenerator::GenerateParsingDoneCode(
     io::Printer* printer) const {
-  JavaType javaType = GetJavaType(descriptor_);
-  if (javaType == JAVATYPE_INT || javaType == JAVATYPE_LONG ||
-      javaType == JAVATYPE_FLOAT || javaType == JAVATYPE_DOUBLE ||
-      javaType == JAVATYPE_BOOLEAN) {
-    printer->Print(variables_,
-                   "if ($get_mutable_bit_parser$) {\n"
-                   "  $name$_.makeImmutable();\n"
-                   "}\n");
-  } else {
-    printer->Print(variables_,
-                   "if ($get_mutable_bit_parser$) {\n"
-                   "  $name$_ = java.util.Collections.unmodifiableList($name$_);\n"
-                   "}\n");
-  }
+  printer->Print(variables_,
+               "if ($name$_.isModifiable()) {\n"
+               "  $name$_.makeImmutable();\n"
+               "}\n");
 }
 
 void RepeatedImmutablePrimitiveFieldGenerator::GenerateSerializationCode(

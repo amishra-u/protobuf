@@ -744,6 +744,21 @@ void ImmutableStringOneofFieldGenerator::GenerateBuildingCode(
   // No-Op: oneof fields are built by a single statement
 }
 
+void ImmutableStringOneofFieldGenerator::GenerateParsingCode(
+  io::Printer *printer) const {
+  if (CheckUtf8(descriptor_)) {
+    printer->Print(variables_,
+                   "java.lang.String s = input.readStringRequireUtf8();\n"
+                   "$set_oneof_case_message$;\n"
+                   "$oneof_name$_ = s;\n");
+  } else {
+    printer->Print(variables_,
+                   "com.google.protobuf.ByteString bs = input.readBytes();\n"
+                   "$set_oneof_case_message$;\n"
+                   "$oneof_name$_ = bs;\n");
+  }
+}
+
 void ImmutableStringOneofFieldGenerator::GenerateBuilderParsingCode(
     io::Printer* printer) const {
   if (CheckUtf8(descriptor_)) {
@@ -1200,10 +1215,7 @@ void RepeatedImmutableStringFieldGenerator::GenerateParsingCode(
 
 void RepeatedImmutableStringFieldGenerator::GenerateParsingDoneCode(
     io::Printer* printer) const {
-  printer->Print(variables_,
-                 "if ($get_mutable_bit_parser$) {\n"
-                 "  $name$_ = $name$_.getUnmodifiableView();\n"
-                 "}\n");
+  printer->Print(variables_, "$name$_.makeImmutable();\n");
 }
 
 void RepeatedImmutableStringFieldGenerator::GenerateSerializationCode(

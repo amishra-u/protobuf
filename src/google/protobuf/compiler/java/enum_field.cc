@@ -598,6 +598,27 @@ void ImmutableEnumOneofFieldGenerator::GenerateMergingCode(
   }
 }
 
+void ImmutableEnumOneofFieldGenerator::GenerateParsingCode(
+  io::Printer *printer) const {
+  if (SupportUnknownEnumValue(descriptor_)) {
+    printer->Print(variables_,
+                   "int rawValue = input.readEnum();\n"
+                   "$set_oneof_case_message$;\n"
+                   "$oneof_name$_ = rawValue;\n");
+  } else {
+    printer->Print(variables_,
+                   "int rawValue = input.readEnum();\n"
+                   "@SuppressWarnings(\"deprecation\")\n"
+                   "$type$ value = $type$.$for_number$(rawValue);\n"
+                   "if (value == null) {\n"
+                   "  unknownFields.mergeVarintField($number$, rawValue);\n"
+                   "} else {\n"
+                   "  $set_oneof_case_message$;\n"
+                   "  $oneof_name$_ = rawValue;\n"
+                   "}\n");
+  }
+}
+
 void ImmutableEnumOneofFieldGenerator::GenerateBuilderParsingCode(
     io::Printer* printer) const {
   if (SupportUnknownEnumValue(descriptor_)) {

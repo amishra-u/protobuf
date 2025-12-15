@@ -798,6 +798,34 @@ void ImmutableMessageOneofFieldGenerator::GenerateMergingCode(
                  "merge$capitalized_name$(other.get$capitalized_name$());\n");
 }
 
+void ImmutableMessageOneofFieldGenerator::GenerateParsingCode(
+    io::Printer *printer) const {
+   printer->Print(variables_,
+                   "$type$.Builder subBuilder = null;\n"
+                   "if ($has_oneof_case_message$) {\n"
+                   "  subBuilder = (($type$) $oneof_name$_).toBuilder();\n"
+                   "}\n");
+
+    if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
+        printer->Print(
+            variables_,
+            "$oneof_name$_ = input.readGroup($number$, $type$.$get_parser$,\n"
+            "    extensionRegistry);\n");
+    } else {
+        printer->Print(
+            variables_,
+            "$oneof_name$_ =\n"
+            "    input.readMessage($type$.$get_parser$, extensionRegistry);\n");
+    }
+
+    printer->Print(variables_,
+                   "if (subBuilder != null) {\n"
+                   "  subBuilder.mergeFrom(($type$) $oneof_name$_);\n"
+                   "  $oneof_name$_ = subBuilder.buildPartial();\n"
+                   "}\n");
+    printer->Print(variables_, "$set_oneof_case_message$;\n");
+}
+
 void ImmutableMessageOneofFieldGenerator::GenerateBuilderParsingCode(
     io::Printer* printer) const {
   if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
