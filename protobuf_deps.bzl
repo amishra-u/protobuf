@@ -47,10 +47,30 @@ def protobuf_deps():
     if not native.existing_rule("zlib"):
         http_archive(
             name = "zlib",
-            build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
-            sha256 = "629380c90a77b964d896ed37163f5c3a34f6e6d897311f1df2a7016355c45eff",
-            strip_prefix = "zlib-1.2.11",
-            urls = ["https://github.com/madler/zlib/archive/v1.2.11.tar.gz"],
+            build_file = Label("//:third_party/zlib.BUILD"),
+            sha256 = "38ef96b8dfe510d42707d9c781877914792541133e1870841463bfa73f883e32",
+            strip_prefix = "zlib-1.3.1",
+            urls = [
+                "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.xz",
+                "https://zlib.net/zlib-1.3.1.tar.xz",
+            ],
+        )
+
+    if not native.existing_rule("jsoncpp"):
+        _github_archive(
+            name = "jsoncpp",
+            repo = "https://github.com/open-source-parsers/jsoncpp",
+            commit = "9059f5cad030ba11d37818847443a53918c327b1",  # 1.9.4
+            sha256 = "c0c583c7b53a53bcd1f7385f15439dcdf0314d550362379e2db9919a918d1996",
+            build_file = Label("//:third_party/jsoncpp.BUILD"),
+        )
+
+    if not native.existing_rule("utf8_range"):
+        _github_archive(
+            name = "utf8_range",
+            repo = "https://github.com/protocolbuffers/utf8_range",
+            commit = "d863bc33e15cba6d873c878dcca9e6fe52b2f8cb",
+            sha256 = "568988b5f7261ca181468dba38849fabf59dd9200fb2ed4b2823da187ef84d8c",
         )
 
     if not native.existing_rule("rules_cc"):
