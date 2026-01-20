@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+option java_package = "com.uber.debugprotobuf";
+option java_outer_classname = "DebugProtobufProto";
+
+message BenchmarkRequest {
+  NodeA root = 1;
+}
+
+message BenchmarkResponse {
+}
+
+// Tree structure for benchmarking
+// Level 1
+message NodeA {
+  NodeB child1 = 1;
+  NodeB child2 = 2;
+  NodeB child3 = 3;
+  NodeB child4 = 4;
+  NodeB child5 = 5;
+  NodeB child6 = 6;
+  NodeB child7 = 7;
+  NodeB child8 = 8;
+  string name = 9;
+  int64 value = 10;
+}
+
+// Level 2
+message NodeB {
+  NodeC child1 = 1;
+  NodeC child2 = 2;
+  NodeC child3 = 3;
+  NodeC child4 = 4;
+  NodeC child5 = 5;
+  NodeC child6 = 6;
+  NodeC child7 = 7;
+  NodeC child8 = 8;
+  string name = 9;
+  int64 value = 10;
+}
+
+// Level 3
+message NodeC {NodeD child1 = 1;
+  NodeD child2 = 2;
+  NodeD child3 = 3;
+  NodeD child4 = 4;
+  NodeD child5 = 5;
+  NodeD child6 = 6;
+  NodeD child7 = 7;
+  NodeD child8 = 8;
+  string name = 9;
+  int64 value = 10;
+}
+
+// Level 4
+message NodeD {
+  NodeE child1 = 1;
+  NodeE child2 = 2;
+  NodeE child3 = 3;
+  NodeE child4 = 4;
+  NodeE child5 = 5;
+  NodeE child6 = 6;
+  NodeE child7 = 7;
+  NodeE child8 = 8;
+  string name = 9;
+  int64 value = 10;
+}
+
+// Level 5
+message NodeE {
+  NodeF child1 = 1;
+  NodeF child2 = 2;
+  NodeF child3 = 3;
+  NodeF child4 = 4;
+  NodeF child5 = 5;
+  NodeF child6 = 6;
+  NodeF child7 = 7;
+  NodeF child8 = 8;
+  string name = 9;
+  int64 value = 10;
+}
+
+// Level 6
+message NodeF {
+  NodeG child1 = 1;
+  NodeG child2 = 2;
+  NodeG child3 = 3;
+  NodeG child4 = 4;
+  NodeG child5 = 5;
+  NodeG child6 = 6;
+  NodeG child7 = 7;
+  NodeG child8 = 8;
+  string name = 9;
+  int64 value = 10;
+}
+
+// Level 7
+message NodeG {
+  NodeH child1 = 1;
+  NodeH child2 = 2;
+  NodeH child3 = 3;
+  NodeH child4 = 4;
+  NodeH child5 = 5;
+  NodeH child6 = 6;
+  NodeH child7 = 7;
+  NodeH child8 = 8;
+  string name = 9;
+  int64 value = 10;
+}
+
+// Level 8
+message NodeH {
+  string name = 1;
+  int64 value = 2;
+}

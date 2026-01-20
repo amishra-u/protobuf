@@ -1,0 +1,59 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_java//java:defs.bzl", "java_proto_library")
+
+
+# keep
+proto_library(
+    name = "benchmark_proto",
+    srcs = ["src/main/proto/benchmark.proto"],
+    visibility = ["//pkg:__pkg__"],
+)
+
+java_proto_library(
+    name = "benchmark_proto_java",
+    deps = [":benchmark_proto"],
+)
+
+# Proto for CVE-2022-3171 vulnerability demonstration
+proto_library(
+    name = "cve_proto",
+    srcs = ["src/main/proto/cve_vulnerable.proto"],
+    visibility = ["//pkg:__pkg__"],
+)
+
+java_proto_library(
+     name = "cve_proto_java",
+     deps = [":cve_proto"],
+)
+
+java_library(
+     name = "src_main",
+     deps = [
+         ":benchmark_proto_java",
+         ":cve_proto_java",
+         "//java/core:lite_runtime_only",
+     ],
+     srcs = [
+         "src/main/java/com/uber/debugprotobuf/DebugProtobuf.java",
+         "src/main/java/com/uber/debugprotobuf/CVE_2022_3171_ClusterfuzzTest.java",
+     ],
+     resources = [
+         "src/main/resources/clusterfuzz-testcase-minimized-ProtobufFuzzer-4671272402944000"
+     ],
+ )
+
+java_binary(
+     name = "bin_benchmark",
+     main_class = "com.uber.debugprotobuf.DebugProtobuf",
+     runtime_deps = [
+         ":src_main",
+     ],
+)
+
+java_binary(
+     name = "bin_cve",
+     main_class = "com.uber.debugprotobuf.CVE_2022_3171_ClusterfuzzTest",
+     runtime_deps = [
+         ":src_main",
+     ],
+)
