@@ -187,8 +187,7 @@ protobuf_java_library(
     name = "lite_runtime_only",
     srcs = LITE_SRCS,
     visibility = [
-        "//java/kotlin:__pkg__",
-        "//java/lite:__pkg__",
+        "//visibility:public",
     ],
 )
 

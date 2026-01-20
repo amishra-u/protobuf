@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option java_package = "com.uber.debugprotobuf";
+option java_outer_classname = "CVEProtobufProto";
+
+// Root message - field 3 will be repeated in wire format
+// This demonstrates CVE-2022-3171: DoS via repeated embedded messages with repeated fields
+message VulnerableRequest {
+  EmbeddedMessage data = 3;  // Field 3 (matches clusterfuzz test case pattern)
+}
+
+// Embedded message WITH repeated fields (triggers CVE-2022-3171!)
+// When this message appears multiple times in the wire format for the same field,
+// protobuf converts between mutable/immutable forms repeatedly, causing GC pressure
+message EmbeddedMessage {
+  // ClusterFuzz payload only uses field 14 with varint values (9, 35, 26, 24, 64)
+  // Fields 1, 9, 10 are not present in the actual attack payload
+  repeated int32 tags = 14;  // Simplified: varint values, not strings
+}
