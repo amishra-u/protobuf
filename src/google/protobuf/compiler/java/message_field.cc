@@ -99,6 +99,9 @@ void SetMessageVariables(
   (*variables)["get_has_field_bit_from_local"] =
       GenerateGetBitFromLocal(builderBitIndex);
 
+  (*variables)["builder_var"] =
+      absl::StrCat((*variables)["name"], "Builder_");
+
   // For repeated fields, one bit is used for whether the array is immutable
   // in the parsing constructor.
   (*variables)["get_mutable_bit_parser"] =
@@ -488,32 +491,48 @@ void ImmutableMessageFieldGenerator::GenerateBuilderParsingCode(
 void ImmutableMessageFieldGenerator::GenerateParsingCode(
     io::Printer* printer) const {
   printer->Print(variables_,
-                 "$type$.Builder subBuilder = null;\n"
-                 "if ($is_field_present_message$) {\n"
-                 "  subBuilder = $name$_.toBuilder();\n"
-                 "}\n");
-
+                 "if ($builder_var$ == null && !$is_field_present_message$) {\n");
+  printer->Indent();
   if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
     printer->Print(variables_,
                    "$name$_ = input.readGroup($number$, $type$.$get_parser$,\n"
-                   "    extensionRegistry);\n");
+                   "    extensionRegistry);\n"
+                   "$set_has_field_bit_message$\n");
   } else {
     printer->Print(variables_,
-                   "$name$_ = input.readMessage($type$.$get_parser$, "
-                   "extensionRegistry);\n");
+                   "$name$_ = input.readMessage($type$.$get_parser$, extensionRegistry);\n"
+                   "$set_has_field_bit_message$\n");
   }
-
+  printer->Outdent();
   printer->Print(variables_,
-                 "if (subBuilder != null) {\n"
-                 "  subBuilder.mergeFrom($name$_);\n"
-                 "  $name$_ = subBuilder.buildPartial();\n"
-                 "}\n"
-                 "$set_has_field_bit_message$\n");
+                 "} else {\n");
+  printer->Indent();
+  printer->Print(variables_,
+                 "if ($builder_var$ == null) {\n"
+                 "  $builder_var$ = $type$.newBuilder();\n"
+                 "  $builder_var$.mergeFrom($name$_);\n"
+                 "  $name$_ = null;\n"
+                 "}\n");
+  if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
+    printer->Print(variables_,
+                   "input.readGroup($number$, $builder_var$,\n"
+                   "    extensionRegistry);\n"
+                   "$set_has_field_bit_message$\n");
+  } else {
+    printer->Print(variables_,
+                   "input.readMessage($builder_var$, extensionRegistry);\n"
+                   "$set_has_field_bit_message$\n");
+  }
+  printer->Outdent();
+  printer->Print(variables_, "}\n");
 }
 
 void ImmutableMessageFieldGenerator::GenerateParsingDoneCode(
     io::Printer* printer) const {
-  // noop for messages.
+  printer->Print(variables_,
+                 "if ($builder_var$ != null) {\n"
+                 "  $name$_ = $builder_var$.buildPartial();\n"
+                 "}\n");
 }
 
 void ImmutableMessageFieldGenerator::GenerateSerializationCode(
@@ -800,30 +819,47 @@ void ImmutableMessageOneofFieldGenerator::GenerateMergingCode(
 
 void ImmutableMessageOneofFieldGenerator::GenerateParsingCode(
     io::Printer *printer) const {
-   printer->Print(variables_,
-                   "$type$.Builder subBuilder = null;\n"
-                   "if ($has_oneof_case_message$) {\n"
-                   "  subBuilder = (($type$) $oneof_name$_).toBuilder();\n"
-                   "}\n");
-
-    if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
-        printer->Print(
-            variables_,
-            "$oneof_name$_ = input.readGroup($number$, $type$.$get_parser$,\n"
-            "    extensionRegistry);\n");
-    } else {
-        printer->Print(
-            variables_,
-            "$oneof_name$_ =\n"
-            "    input.readMessage($type$.$get_parser$, extensionRegistry);\n");
-    }
-
+  printer->Print(variables_,
+                 "if ($builder_var$ == null && !($has_oneof_case_message$)) {\n");
+  printer->Indent();
+  if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
     printer->Print(variables_,
-                   "if (subBuilder != null) {\n"
-                   "  subBuilder.mergeFrom(($type$) $oneof_name$_);\n"
-                   "  $oneof_name$_ = subBuilder.buildPartial();\n"
-                   "}\n");
-    printer->Print(variables_, "$set_oneof_case_message$;\n");
+                   "$oneof_name$_ = input.readGroup($number$, $type$.$get_parser$,\n"
+                   "    extensionRegistry);\n");
+  } else {
+    printer->Print(variables_,
+                   "$oneof_name$_ =\n"
+                   "    input.readMessage($type$.$get_parser$, extensionRegistry);\n");
+  }
+  printer->Print(variables_, "$set_oneof_case_message$;\n");
+  printer->Outdent();
+  printer->Print(variables_, "} else {\n");
+  printer->Indent();
+  printer->Print(variables_,
+                 "if ($builder_var$ == null) {\n"
+                 "  $builder_var$ = $type$.newBuilder();\n"
+                 "  $builder_var$.mergeFrom(($type$) $oneof_name$_);\n"
+                 "  $oneof_name$_ = null;\n"
+                 "}\n");
+  if (GetType(descriptor_) == FieldDescriptor::TYPE_GROUP) {
+    printer->Print(variables_,
+                   "input.readGroup($number$, $builder_var$,\n"
+                   "    extensionRegistry);\n");
+  } else {
+    printer->Print(variables_,
+                   "input.readMessage($builder_var$, extensionRegistry);\n");
+  }
+  printer->Print(variables_, "$set_oneof_case_message$;\n");
+  printer->Outdent();
+  printer->Print(variables_, "}\n");
+}
+
+void ImmutableMessageOneofFieldGenerator::GenerateParsingDoneCode(
+    io::Printer* printer) const {
+  printer->Print(variables_,
+                 "if ($has_oneof_case_message$ && $builder_var$ != null) {\n"
+                 "  $oneof_name$_ = $builder_var$.buildPartial();\n"
+                 "}\n");
 }
 
 void ImmutableMessageOneofFieldGenerator::GenerateBuilderParsingCode(

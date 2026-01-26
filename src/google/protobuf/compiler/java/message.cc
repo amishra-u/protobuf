@@ -1165,6 +1165,17 @@ void ImmutableMessageGenerator::GenerateParsingConstructor(
                    GetBitFieldName(i));
   }
 
+  for (int i = 0; i < descriptor_->field_count(); i++) {
+    const FieldDescriptor* field = descriptor_->field(i);
+    if (GetJavaType(field) == JAVATYPE_MESSAGE && !field->is_repeated()) {
+      const FieldGeneratorInfo* info = context_->GetFieldGeneratorInfo(field);
+      printer->Print("$type$.Builder $name$Builder_ = null;\n", "type",
+                     name_resolver_->GetImmutableClassName(
+                         field->message_type()),
+                     "name", info->name);
+    }
+  }
+
   printer->Print(
       "com.google.protobuf.UnknownFieldSet.Builder unknownFields =\n"
       "    com.google.protobuf.UnknownFieldSet.newBuilder();\n");
