@@ -1,4 +1,6 @@
 build --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
+# Workaround for zlib compilation issues with newer macOS SDK
+build --copt=-DNO_FSEEKO --host_copt=-DNO_FSEEKO
 
 build:dbg --compilation_mode=dbg
 
@@ -31,8 +33,6 @@ build:ubsan --copt=-fno-sanitize=nonnull-attribute
 
 # TODO: migrate all dependencies from WORKSPACE to MODULE.bazel
 # https://github.com/protocolbuffers/protobuf/issues/14313
-common --noenable_bzlmod
-common --override_repository=com_google_protobuf=%workspace%
 # Workaround for macOS 15+ wrapped_clang LC_UUID issue
 # Apply globally on macOS to fix dyld LC_UUID errors
 build --action_env=BAZEL_USE_CPP_ONLY_TOOLCHAIN=1

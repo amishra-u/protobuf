@@ -48,9 +48,9 @@ def protobuf_deps():
         http_archive(
             name = "zlib",
             build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
-            sha256 = "629380c90a77b964d896ed37163f5c3a34f6e6d897311f1df2a7016355c45eff",
-            strip_prefix = "zlib-1.2.11",
-            urls = ["https://github.com/madler/zlib/archive/v1.2.11.tar.gz"],
+            sha256 = "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23",
+            strip_prefix = "zlib-1.3.1",
+            urls = ["https://github.com/madler/zlib/archive/v1.3.1.tar.gz"],
         )
 
     if not native.existing_rule("rules_cc"):
